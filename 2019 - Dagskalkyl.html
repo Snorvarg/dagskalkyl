@@ -1,0 +1,352 @@
+<html>
+<head>
+<script src="jquery.js"></script>
+</head>
+<body style="background-color: white;">
+<style>
+.main{
+  display: flex;
+  flex-flow: row wrap;
+}
+.year{
+  font-size: 36px;
+  font-family: monospace;
+  margin-bottom: 0;
+}
+
+.month-name{
+  font-size: 24px;
+  font-family: monospace;
+  margin-top: 0;
+  margin-bottom: 0.3em;
+  cursor: pointer;
+}
+.current-month .month-name{
+  background-color: orange;
+}
+.a-fancy-month{
+  width: 50%;
+  transition: all 600ms ease;
+  max-height: 2000px;
+  overflow: hidden;
+}
+.a-fancy-month:hover{
+  background-color: #ffffcc;
+}
+.a-fancy-month.current-month{
+  
+}
+
+.a-fancy-month.minimized{
+  max-height: 30px;
+}
+.info-row{
+  display: flex;
+}
+.info-row div{
+  padding: 3px;
+  border-top: 1px solid black;
+  border-left: 1px solid black;
+  width: 15%;
+  background-color: #FFFF00;
+}
+.info-row div:last-child{
+  border-right: 1px solid black;
+}
+.day-row{
+  display: flex;
+}
+.day-row div{
+  padding: 3px;
+  border-top: 1px solid black;
+  border-left: 1px solid black;
+  width: 15%;
+}
+.day-row div:last-child{
+  border-right: 1px solid black;
+}
+.day-row:last-child > div{
+  border-bottom: 1px solid black;
+}
+
+.current-day div{
+  background-color: green;
+}
+
+.spent-input{
+  width: 100%;
+  background-color: #fae2f2;
+}
+
+.day-sum.modified{
+  color: blue;
+  font-weight: bold;
+}
+.day-res span{
+  font-weight: bold;
+  font-size: 18px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+.positive{
+  color: green;
+  background-color: #eeffee;
+}
+.negative{
+  color: red;
+  background-color: #ffeeee;
+}
+
+.info{
+  font-size:18px;
+}
+</style>
+<p class='year'>2019</p>
+<p class="info">Om du inte gjort av med pengar en eller flera dar, så måste du fylla i nollor för att den ska räkna fram till den dag du är på.</p>
+<p class="info">Den för inte över överskott/underskott till nästa månad! För att radera allt: Högerklicka och välj Inspect, fliken Application, Local Storage, och så raderar du där.</p>
+<div class="main" id="AllMonths">
+
+<div style="display:none;">
+  <div id="MonthTemplate" class="a-fancy-month minimized">
+    <div class="month-name" onclick="ToggleMonth(this);">Hamstermånad</div>
+    <div class="info-row"><div>&nbsp;</div><div>&nbsp;</div><div>&nbsp;</div><div>Daysum</div><div>Spent</div><div>Res</div></div>
+    <!-- Here goes 7 DayRows -->
+  </div>
+  <div id="DayRowTemplate" class="day-row">
+    <div class="week-nr">V42</div>
+    <div class="day-name">Ö</div>
+    <div class="day-nr">3</div>
+    <div class="day-sum">130</div>
+    <div class="day-spent"><input class="spent-input" onchange="SpentChanged(this);"></input></div>
+    <div class="day-res">+90</div>
+  </div>
+</div>
+
+<script>
+var weekDays = ['M','T','O','T','F','L','S'];
+var monthNames = ['Januari','Februari','Mars','April','Maj','Juni','Juli','Augusti','September','Oktober','November','December'];
+
+var currentDate = new Date();
+var currentMonth = currentDate.getMonth();
+var currentDay = currentDate.getDate();
+var sumToSpendEveryDay = 130;
+var forcingUpdate = false;
+
+$(function(){
+  // Jan-Mar
+  weekNr = ProduceMonth(0, 1, 1, 31);
+  weekNr = ProduceMonth(1, weekNr, 4, 28);
+  weekNr = ProduceMonth(2, weekNr, 4, 31);
+
+  // Apr-Jun
+  weekNr = ProduceMonth(3, weekNr, 0, 30);
+  weekNr = ProduceMonth(4, weekNr, 2, 31);
+  weekNr = ProduceMonth(5, weekNr, 5, 30);
+
+  // Jul-Sep
+  weekNr = ProduceMonth(6, weekNr, 0, 31);
+  weekNr = ProduceMonth(7, weekNr, 3, 31);
+  weekNr = ProduceMonth(8, weekNr, 6, 30);
+  
+  // Oct-Dec
+  weekNr = ProduceMonth(9, weekNr, 1, 31);
+  weekNr = ProduceMonth(10, weekNr, 4, 30);
+  weekNr = ProduceMonth(11, weekNr, 6, 31);
+  
+  ForceUpdate();
+});
+function ProduceMonth(monthNr, startingWeekNr, firstDayOn, nrOfDays)
+{
+  jqAllMonths = $("#AllMonths");
+  jqMonthTemplate = $("#MonthTemplate");
+  
+  var month = jqMonthTemplate.clone();
+  month.attr("id", "Month_" + monthNames[monthNr]);
+  month.children(".month-name").html(monthNames[monthNr]);
+    
+  if(currentMonth == monthNr)
+  {
+    month.toggleClass("current-month");
+  }
+    
+  var startDayNr = 1;
+  startDayNr = InsertWeek(month, monthNr, startingWeekNr, startDayNr, firstDayOn, nrOfDays);
+  
+  weekNr = startingWeekNr + 1;
+  while(startDayNr < nrOfDays)
+  {
+    startDayNr = InsertWeek(month, monthNr, weekNr, startDayNr, 0, nrOfDays);
+    
+    if(startDayNr < nrOfDays)
+    {
+      weekNr++;
+    }
+  }
+    
+  jqAllMonths.append(month);
+  
+  return weekNr;
+}
+function InsertWeek(month, monthNr, weekNr, startingDay, firstDayOn, nrOfDays)
+{
+  jqDayRowTemplate = $("#DayRowTemplate");
+
+  // A week is always 7 days.
+  for(var i=0; i<7; i++)
+  {
+    var day = jqDayRowTemplate.clone();
+    
+    if(i == 0)
+    {
+      day.children(".week-nr").html('V' + weekNr);
+    }
+    else
+    {
+      day.children(".week-nr").html('');
+    }
+    
+    if(i >= firstDayOn && startingDay <= nrOfDays)
+    {
+      var id = "Day_" + monthNr + "_" + startingDay;
+      day.attr("id", id);
+      
+      spent = "";
+      if(localStorage.getItem(id))
+      {
+        spent = localStorage.getItem(id);
+      }
+
+      if(currentMonth == monthNr && currentDay == startingDay)
+      {
+        day.toggleClass("current-day");
+      }
+            
+      day.children(".day-name").html(weekDays[i]);
+      day.children(".day-nr").html(startingDay);
+      day.children(".day-sum").html(sumToSpendEveryDay);
+      day.children(".day-res").html("");
+      
+      day.children(".day-spent").children(".spent-input").val(spent);
+      
+      startingDay++;
+    }
+    else
+    {
+      day.removeAttr("id");
+
+      day.children(".day-name").html(weekDays[i]);
+      day.children(".day-nr").html("");
+      day.children(".day-sum").html("");
+      day.children(".day-spent").html("");
+      day.children(".day-res").html("");
+    }
+    month.append(day);
+  }
+  
+  return startingDay;
+}
+
+function ToggleMonth(elm)
+{
+  $(elm).parent().toggleClass("minimized");
+}
+function SpentChanged(elm)
+{
+  var spent = $(elm).val();
+  var row = $(elm).closest(".day-row");
+  var daySum = row.children(".day-sum").text();
+  var res = daySum - spent;
+  
+  localStorage.setItem(row.attr("id"), spent);
+  
+  var html = res;
+  if(res > 0)
+  {
+    html = "<span class='positive'>+</span> " + res;
+  }
+  else if(res < 0)
+  {
+    html = "<span class='negative'>-</span> " + (-res);
+  }
+  
+  row.children(".day-res").html(html);
+  
+  // Fetch next day.
+  var parts = row.attr("id").split('_');
+  parts[2]++;
+  
+  var nextDayId = parts[0] + "_" + parts[1] + "_" + parts[2];
+  // alert(nextDayId);
+  
+  row = $("#" + nextDayId);
+  
+  if(row.length > 0)
+  {
+    UpdateDay(row, res);
+  }
+}
+
+function ForceUpdate()
+{
+  forcingUpdate = true;
+  
+  // For each month, force an update.
+  for(var i=0;i<12;i++)
+  {
+    var row = $("#Day_" + i + "_1");
+    UpdateDay(row, 0);
+  }
+}
+
+function UpdateDay(row, prevDaySpent)
+{
+  if(prevDaySpent != 0)
+  {
+    row.children(".day-sum").html(sumToSpendEveryDay + prevDaySpent);
+    row.children(".day-sum").addClass("modified")
+  }
+  else
+  {
+    row.children(".day-sum").html(sumToSpendEveryDay);
+    row.children(".day-sum").removeClass("modified")
+  }
+  
+  var daySum = row.children(".day-sum").text();
+  var daySpent = row.children(".day-spent").children(".spent-input").val();
+  
+  var res = 0;
+  if(daySpent != 0)
+  {
+    var res = daySum - daySpent;
+    
+    var html = res;
+    if(res > 0)
+    {
+      html = "<span class='positive'>+</span> " + res;
+    }
+    else if(res < 0)
+    {
+      html = "<span class='negative'>-</span> " + (-res);
+    }
+    
+    row.children(".day-res").html(html);  
+  }
+  
+  // Fetch next day.
+  var parts = row.attr("id").split('_');
+  parts[2]++;
+  
+  var nextDayId = parts[0] + "_" + parts[1] + "_" + parts[2];
+  //alert(nextDayId);
+  
+  row = $("#" + nextDayId);
+  
+  if(row.length > 0)
+  {
+    UpdateDay(row, res);
+  }
+}
+</script>
+</div><!--main-->
+</body>
+</html>
