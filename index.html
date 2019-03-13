@@ -1,12 +1,14 @@
+<!DOCTYPE html>
 <html>
 <head>
-<script src="jquery.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dagsutgifter</title>
+  <script src="jquery.js"></script>
 </head>
 <body style="background-color: white;">
 <style>
 .main{
-  display: flex;
-  flex-flow: row wrap;
 }
 .year{
   font-size: 36px;
@@ -100,12 +102,27 @@
 .info{
   font-size:18px;
 }
+.after-input{
+}
+.max-spend{
+  margin: 10px;
+  margin-bottom: 30px;
+  padding: 10px;
+  background-color: #f5f5f5;
+}
 </style>
 <p class='year'>2019</p>
+<p class="info">Klicka på en månad för att öppna upp dagvyn.</p>
 <p class="info">Om du inte gjort av med pengar en eller flera dar, så måste du fylla i nollor för att den ska räkna fram till den dag du är på.</p>
 <p class="info">Den för inte över överskott/underskott till nästa månad! För att radera allt: Högerklicka och välj Inspect, fliken Application, Local Storage, och så raderar du där.</p>
+<div class="max-spend">
+  <p class="info">Ange hur stor summa du maximalt tänkt spendera per dag:</p>
+  <input id="MaxSpendInput" onchange="MaxSpendChanged();"></input>
+  <span class="after-input">Nuvarande värde: <span id="CurrentMaxSpend"></span></span>
+</div>
 <div class="main" id="AllMonths">
-
+  <!-- Javascript populate this with 12 months. -->
+</div>
 <div style="display:none;">
   <div id="MonthTemplate" class="a-fancy-month minimized">
     <div class="month-name" onclick="ToggleMonth(this);">Hamstermånad</div>
@@ -121,7 +138,6 @@
     <div class="day-res">+90</div>
   </div>
 </div>
-
 <script>
 var weekDays = ['M','T','O','T','F','L','S'];
 var monthNames = ['Januari','Februari','Mars','April','Maj','Juni','Juli','Augusti','September','Oktober','November','December'];
@@ -133,6 +149,14 @@ var sumToSpendEveryDay = 130;
 var forcingUpdate = false;
 
 $(function(){
+  if(localStorage.getItem("sumToSpendEveryDay"))
+  {
+    var val = localStorage.getItem("sumToSpendEveryDay");
+    sumToSpendEveryDay = parseInt(Number(val));
+  }
+
+  $("#CurrentMaxSpend").html(sumToSpendEveryDay);
+  
   // Jan-Mar
   weekNr = ProduceMonth(0, 1, 1, 31);
   weekNr = ProduceMonth(1, weekNr, 4, 28);
@@ -346,7 +370,32 @@ function UpdateDay(row, prevDaySpent)
     UpdateDay(row, res);
   }
 }
+
+function MaxSpendChanged()
+{
+  var val = $("#MaxSpendInput").val();
+    
+  if(val <= 0 || isInt(val) == false)
+  {
+    alert("Du måste ange ett positivt heltal, tex 130.");
+    $("#MaxSpendInput").val("");
+    return;
+  }
+  
+  sumToSpendEveryDay = parseInt(Number(val));
+  localStorage.setItem("sumToSpendEveryDay", sumToSpendEveryDay);
+  
+  $("#CurrentMaxSpend").html(sumToSpendEveryDay);
+  
+  ForceUpdate();
+}
+
+function isInt(value)
+{
+  return !isNaN(value) && 
+         parseInt(Number(value)) == value && 
+         !isNaN(parseInt(value, 10));
+}
 </script>
-</div><!--main-->
 </body>
 </html>
